@@ -1,0 +1,146 @@
+To begin I ran a nmap scan to see the available ports that I can access
+
+#nmap command
+
+sudo nmap -sC -sV -oN nmap/scan 10.0.2.251
+
+
+# nmap results
+
+
+Starting Nmap 7.91 ( https://nmap.org ) at 2021-07-09 09:27 EDT
+Nmap scan report for 10.0.2.251
+Host is up (0.00027s latency).
+Not shown: 995 closed ports
+PORT    STATE SERVICE     VERSION
+21/tcp  open  ftp         vsftpd 3.0.3
+80/tcp  open  http        Apache httpd 2.4.29 ((Ubuntu))
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+139/tcp open  netbios-ssn Samba smbd 3.X - 4.X (workgroup: WORKGROUP)
+443/tcp open  ssl/https   Apache/2.4.29 (Ubuntu)
+|_http-server-header: Apache/2.4.29 (Ubuntu)
+|_http-title: Apache2 Ubuntu Default Page: It works
+445/tcp open  netbios-ssn Samba smbd 4.7.6-Ubuntu (workgroup: WORKGROUP)
+MAC Address: 08:00:27:8D:FE:50 (Oracle VirtualBox virtual NIC)
+Service Info: Host: VENOM; OS: Unix
+
+Host script results:
+|_clock-skew: mean: -1h49m59s, deviation: 3h10m31s, median: 0s
+|_nbstat: NetBIOS name: VENOM, NetBIOS user: <unknown>, NetBIOS MAC: <unknown> (unknown)
+| smb-os-discovery: 
+|   OS: Windows 6.1 (Samba 4.7.6-Ubuntu)
+|   Computer name: venom
+|   NetBIOS computer name: VENOM\x00
+|   Domain name: \x00
+|   FQDN: venom
+|_  System time: 2021-07-09T18:57:53+05:30
+| smb-security-mode: 
+|   account_used: guest
+|   authentication_level: user
+|   challenge_response: supported
+|_  message_signing: disabled (dangerous, but default)
+| smb2-security-mode: 
+|   2.02: 
+|_    Message signing enabled but not required
+| smb2-time: 
+|   date: 2021-07-09T13:27:53
+|_  start_date: N/A
+
+
+I saw that it was running samba so I used enum4linux to see if I could find any shares or users on the computer
+I didn't find any shares that I could access but I did find 2 users
+
+# enum4linux command
+
+enum4linux -a 10.0.2.251
+
+
+# enum4linux results
+
+ ===================================================================== 
+|    Users on 10.0.2.251 via RID cycling (RIDS: 500-550,1000-1050)    |
+ ===================================================================== 
+[I] Found new SID: S-1-22-1
+[I] Found new SID: S-1-5-21-3525385883-4254613925-43684688
+[I] Found new SID: S-1-5-32
+[+] Enumerating users using SID S-1-22-1 and logon username '', password ''
+S-1-22-1-1000 Unix User\nathan (Local User)
+S-1-22-1-1002 Unix User\hostinger (Local User)
+
+
+I then ran gobuster to see if there were any hidden directories that I could find and found nothing more than the index page
+
+I went to the index page in the browser and it was the default apache page but at the bottom of the page was a text that 
+said "follow this to get access on somewhere.....-->", so I viewed the page source code and got another string that looks 
+to be a md5 hash "<5f2a66f947fa5690c26506f66bde5c23>"
+
+The md5 hash decoded to be "hostinger"
+
+I tried to login to ftp with the user nathan and I got a access denied so I tried with hostinger user and was prompt
+for their password, I used their username for the password and was able to login to ftp using hostinger:hostinger
+
+On the ftp server there is a file called hint.txt so I downloaded it
+
+Here are the contents of hint.txt
+
+Hey there... 
+
+T0D0 --
+
+* You need to follow the 'hostinger' on WXpOU2FHSnRVbWhqYlZGblpHMXNibHBYTld4amJWVm5XVEpzZDJGSFZuaz0= also aHR0cHM6Ly9jcnlwdGlpLmNvbS9waXBlcy92aWdlbmVyZS1jaXBoZXI=
+* some knowledge of cipher is required to decode the dora password..
+* try on venom.box
+password -- L7f9l8@J#p%Ue+Q1234 -> decode this you will get the administrator password 
+
+
+Have fun .. :)
+
+Seeing that the hint points at venom.box I added the IP and venom.box to my /etc/hosts file
+
+After adding venom.box to /etc/hosts and visiting it in the web browser I got a different page than before
+
+After decoding the first base64 string three times I got this string "standard vigenere cipher"
+
+The second base64 encoded string decoded to a url that looks to be a cipher decoder https://cryptii.com/pipes/vigenere-cipher
+
+After decoding the cipher using "hostinger" as the key I went to the admin panel and tried to login with hostinger:E7r9t8@Q#h%Hy+M1234
+and was unsuccessful so I tried the username dora and was able to login to the admin panel
+
+Seeing that is was using Subrion 4.2 cms I looked for known exploits and found several of them
+
+
+# NOTES ABOUT THE IMAGE FILE UPLOAD
+After messing around for a bit I found that you can upload a image file as a avatar but they only allow
+gif,jpg,jpeg and png files to be used. Trying to see if there is a way to bypass the image upload and get a rce on the server
+
+It seems as if they are checking the extensions of the file but not the actual data of the image file
+I just can't seem to get it to run code, when I upload the file and then go to visit the "image" file in the browser I 
+get a 404 error
+
+After messing with the image file upload and getting nowhere I decided to move one and found a file upload that doesn't
+restrict .phar files and was able to upload a reverse shell from there
+
+After getting a reverse shell I was able to escalate to "hostinger" user using their username as the password
+
+Checking the "hostinger" users .bash_history revealed that he was reading a file in /var/www/html/subrion/backup/.htaccess
+in the file was a string that said "you will be happy now" along with a long string of random letters/numbers 
+"FzN+f2-rRaBgvALzj*Rk#_JJYfg8XfKhxqB82x_a", with that I was able to escelate to the "nathan" user
+
+After getting the "nathan" user I was able to read the user flag
+
+# user flag
+
+W3_@r3_V3n0m:P
+
+As the "nathan" user I was able to run any command as root other than su, so I just used python to escalate to root
+
+# python command to git root
+
+sudo python -c "import os; os.system('/bin/bash')"
+
+
+Once I was root I was able to read the root flag
+
+# root flag
+H@v3_a_n1c3_l1fe.
