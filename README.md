@@ -18,16 +18,17 @@ to your attacker IP and target IP.
 
 # Recommended youtube channels
 
-# ippsec
+
+**ippsec**
 
 https://www.youtube.com/channel/UCa6eh7gCkpPo5XXUDfygQQA
 
 
-# John Hammond
+**John Hammond**
 
 https://www.youtube.com/user/RootOfTheNull
 
 
-# David Bombal
+**David Bombal**
 
 https://www.youtube.com/user/ConfigTerm
