@@ -1,4 +1,4 @@
-# A collection of ctf write ups
+# A collection of ctf writeups
 
 This is a collection of different ctf write ups
 
