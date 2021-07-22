@@ -1,6 +1,6 @@
 # A collection of ctf writeups
 
-This is a collection of different ctf write ups
+This is a collection of different ctf writeups
 
 
 # Disclaimer
